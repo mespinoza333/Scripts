@@ -17,29 +17,30 @@ foreach ($path in $registryPaths) {
         $uninstallRaw = $_.UninstallString
 
         if ($uninstallRaw) {
-            # Caso especial para MsiExec
+            # Caso especial para MSI
             if ($uninstallRaw -match "msiexec\.exe") {
                 Write-Host "🔧 Detectado desinstalador MSI"
 
-                $msiArgs = $uninstallRaw -replace '(?i)msiexec\.exe', '' # Quitar el ejecutable
-                $msiArgs = $msiArgs.Trim()
+                # Extraer solo el GUID si viene en formato /X{GUID}
+                if ($uninstallRaw -match "/X\s*{.+}") {
+                    $args = $matches[0] + " /qn"
+                    $msiExec = "$env:SystemRoot\System32\msiexec.exe"
 
-                $msiExec = "$env:SystemRoot\System32\msiexec.exe"
-
-                Write-Host "🚀 Ejecutando: $msiExec $msiArgs"
-                Start-Process -FilePath $msiExec -ArgumentList $msiArgs -Wait
-                Write-Host "✅ Desinstalación completada (MSI)."
-                $found = $true
+                    Write-Host "🚀 Ejecutando en modo silencioso: $msiExec $args"
+                    Start-Process -FilePath $msiExec -ArgumentList $args -Wait
+                    Write-Host "✅ Desinstalación completada (MSI, silenciosa)."
+                    $found = $true
+                }
             }
-            # Para otros desinstaladores .exe tradicionales
+            # Para otros desinstaladores EXE
             elseif ($uninstallRaw -match '^(?:"?)([^"]+\.exe)(?:"?\s?)(.*)$') {
                 $exePath = $matches[1]
-                $args = $matches[2]
+                $args = $matches[2] + " /quiet"
 
                 if (Test-Path $exePath) {
                     Write-Host "🚀 Ejecutando: $exePath $args"
                     Start-Process -FilePath $exePath -ArgumentList $args -Wait
-                    Write-Host "✅ Desinstalación completada (EXE)."
+                    Write-Host "✅ Desinstalación completada (EXE, silenciosa)."
                     $found = $true
                 } else {
                     Write-Host "❌ El ejecutable no existe: $exePath"
